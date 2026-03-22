@@ -152,7 +152,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     ];
 
     return (
-        <div className="flex items-center gap-1 flex-wrap px-3 py-2 border-b border-border/50 bg-midnight-lighter/50">
+        <div className="sticky top-0 z-10 flex items-center gap-1 flex-wrap px-3 py-2 border-b border-border/50 bg-midnight-lighter/80 backdrop-blur-sm">
             {groups.map((group, groupIndex) => (
                 <div key={groupIndex} className="flex items-center gap-0.5">
                     {groupIndex > 0 && (

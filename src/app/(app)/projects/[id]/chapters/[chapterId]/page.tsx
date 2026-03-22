@@ -306,6 +306,7 @@ export default function ChapterEditorPage() {
             {aiOpen && (
                 <AISidebar
                     projectId={projectId}
+                    chapterId={chapterId}
                     currentText={content}
                     onInsert={handleAIInsert}
                     isOpen={aiOpen}

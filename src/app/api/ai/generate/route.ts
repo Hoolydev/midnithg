@@ -6,6 +6,7 @@ const GROK_MODEL = process.env.GROK_MODEL || 'grok-4';
 
 interface GenerateRequest {
     projectId: string;
+    chapterId?: string;
     mode: 'continue' | 'rewrite' | 'dialogue' | 'describe' | 'freeform';
     prompt: string;
     currentText?: string;
@@ -15,7 +16,7 @@ interface GenerateRequest {
 function buildUserPrompt(req: GenerateRequest): string {
     switch (req.mode) {
         case 'continue':
-            return `Continue writing from where this text ends. Write 2-3 paragraphs that flow naturally:\n\n---\n${req.currentText?.slice(-2000) || ''}\n---`;
+            return `Continue writing from where this text ends. Write ONLY 2-3 short paragraphs that flow naturally. Do NOT advance the plot beyond the immediate scene. Do NOT reveal future events or resolve tensions prematurely. Stay in the moment:\n\n---\n${req.currentText?.slice(-2000) || ''}\n---`;
 
         case 'rewrite':
             return `Rewrite the following text, improving the prose while keeping the same narrative intent:\n\n---\n${req.selectedText || req.currentText?.slice(-1000) || ''}\n---`;
@@ -44,14 +45,17 @@ export async function POST(request: NextRequest) {
 
     try {
         const body: GenerateRequest = await request.json();
-        const { projectId } = body;
+        const { projectId, chapterId } = body;
 
         if (!projectId) {
             return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
         }
 
-        const { systemPrompt } = await buildAIContext(projectId);
+        const { systemPrompt } = await buildAIContext(projectId, chapterId);
         const userPrompt = buildUserPrompt(body);
+
+        // Reduce max_tokens for 'continue' mode to prevent over-generation
+        const maxTokens = body.mode === 'continue' ? 800 : body.mode === 'rewrite' ? 1200 : 1500;
 
         const response = await fetch(GROK_API_URL, {
             method: 'POST',
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
                 ],
                 stream: true,
                 temperature: 0.8,
-                max_tokens: 2000,
+                max_tokens: maxTokens,
             }),
         });
 

@@ -18,6 +18,16 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
     BookOpen,
     Users,
     FileText,
@@ -31,6 +41,8 @@ import {
     ArrowLeft,
     Check,
     X,
+    Save,
+    Loader2,
 } from 'lucide-react';
 import type { Project, Character, Chapter, Event } from '@/lib/database.types';
 
@@ -83,6 +95,15 @@ export default function ProjectPage() {
     const [isEditingGenre, setIsEditingGenre] = useState(false);
     const [isEditingTone, setIsEditingTone] = useState(false);
     const [editValue, setEditValue] = useState('');
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [settingsSaving, setSettingsSaving] = useState(false);
+    const [settingsForm, setSettingsForm] = useState({
+        title: '',
+        summary: '',
+        classification: '',
+        target_audience: '',
+        structure: '',
+    });
 
     useEffect(() => {
         const fetchData = async () => {
@@ -95,7 +116,16 @@ export default function ProjectPage() {
                 supabase.from('events').select('*').eq('project_id', projectId).order('timeline_position'),
             ]);
 
-            if (projectRes.data) setProject(projectRes.data);
+            if (projectRes.data) {
+                setProject(projectRes.data);
+                setSettingsForm({
+                    title: projectRes.data.title || '',
+                    summary: projectRes.data.summary || '',
+                    classification: projectRes.data.classification || '',
+                    target_audience: projectRes.data.target_audience || '',
+                    structure: projectRes.data.structure || '',
+                });
+            }
             if (charsRes.data) setCharacters(charsRes.data);
             if (chaptersRes.data) setChapters(chaptersRes.data);
             if (eventsRes.data) setEvents(eventsRes.data);
@@ -103,6 +133,21 @@ export default function ProjectPage() {
         };
         fetchData();
     }, [projectId]);
+
+    const handleSaveSettings = async () => {
+        setSettingsSaving(true);
+        const supabase = createClient();
+        const { error } = await supabase
+            .from('projects')
+            .update(settingsForm)
+            .eq('id', projectId);
+
+        if (!error && project) {
+            setProject({ ...project, ...settingsForm });
+            setSettingsOpen(false);
+        }
+        setSettingsSaving(false);
+    };
 
     if (loading) {
         return (
@@ -161,10 +206,84 @@ export default function ProjectPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         <ExportDialog projectId={project.id} projectTitle={project.title} />
-                        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
-                            <Settings className="w-4 h-4" />
-                            Configurações
-                        </Button>
+                        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+                                    <Settings className="w-4 h-4" />
+                                    Configurações
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-lg bg-midnight-light border-border/20">
+                                <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-2">
+                                        <Settings className="w-5 h-5 text-burgundy-light" />
+                                        Configurações do Projeto
+                                    </DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 py-2">
+                                    <div className="space-y-2">
+                                        <Label>Título</Label>
+                                        <Input
+                                            value={settingsForm.title}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, title: e.target.value })}
+                                            className="bg-midnight/50 border-border/50"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Sinopse</Label>
+                                        <Textarea
+                                            value={settingsForm.summary}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, summary: e.target.value })}
+                                            rows={3}
+                                            className="bg-midnight/50 border-border/50 resize-none"
+                                            placeholder="Descreva o conceito central da sua história..."
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Classificação</Label>
+                                            <Input
+                                                value={settingsForm.classification}
+                                                onChange={(e) => setSettingsForm({ ...settingsForm, classification: e.target.value })}
+                                                className="bg-midnight/50 border-border/50"
+                                                placeholder="Ex: +18, Jovem Adulto"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Público-Alvo</Label>
+                                            <Input
+                                                value={settingsForm.target_audience}
+                                                onChange={(e) => setSettingsForm({ ...settingsForm, target_audience: e.target.value })}
+                                                className="bg-midnight/50 border-border/50"
+                                                placeholder="Ex: Mulheres 18-35"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Estrutura Narrativa</Label>
+                                        <Input
+                                            value={settingsForm.structure}
+                                            onChange={(e) => setSettingsForm({ ...settingsForm, structure: e.target.value })}
+                                            className="bg-midnight/50 border-border/50"
+                                            placeholder="Ex: Três atos, Jornada do Herói"
+                                        />
+                                    </div>
+                                    <div className="flex justify-end gap-3 pt-2">
+                                        <Button variant="ghost" onClick={() => setSettingsOpen(false)} className="text-muted-foreground">
+                                            Cancelar
+                                        </Button>
+                                        <Button
+                                            onClick={handleSaveSettings}
+                                            disabled={settingsSaving}
+                                            className="bg-burgundy-gradient hover:opacity-90 text-white gap-2"
+                                        >
+                                            {settingsSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                            Salvar
+                                        </Button>
+                                    </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </div>
             </div>

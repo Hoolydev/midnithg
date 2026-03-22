@@ -24,6 +24,7 @@ import { GenerateImageDialog } from '@/components/gallery/generate-image-dialog'
 
 interface AISidebarProps {
     projectId: string;
+    chapterId?: string;
     currentText: string;
     selectedText?: string;
     onInsert: (text: string) => void;
@@ -42,6 +43,7 @@ const quickActions: { mode: AIMode; label: string; icon: React.FC<{ className?: 
 
 export function AISidebar({
     projectId,
+    chapterId,
     currentText,
     selectedText,
     onInsert,
@@ -75,6 +77,7 @@ export function AISidebar({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     projectId,
+                    chapterId,
                     mode,
                     prompt: prompt || freeformPrompt || '',
                     currentText,
@@ -193,9 +196,9 @@ export function AISidebar({
                     <textarea
                         value={freeformPrompt}
                         onChange={(e) => setFreeformPrompt(e.target.value)}
-                        placeholder="Ex: Escreva uma cena de tensão entre..."
-                        rows={3}
-                        className="w-full rounded-lg border border-border/30 bg-midnight/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-burgundy/40 resize-none"
+                        placeholder="Ex: Escreva uma cena de tensão entre os personagens X e Y no cenário Z. Foque nos sentimentos internos e nas sensações físicas..."
+                        rows={5}
+                        className="w-full rounded-lg border border-border/30 bg-midnight/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-burgundy/40 resize-y min-h-[100px] max-h-[250px]"
                     />
                     <Button
                         onClick={() => handleGenerate('freeform')}

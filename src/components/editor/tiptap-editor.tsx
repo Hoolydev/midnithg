@@ -33,6 +33,7 @@ export function TipTapEditor({
     const isExternalUpdate = useRef(false);
 
     const editor = useEditor({
+        immediatelyRender: false,
         extensions: [
             StarterKit.configure({
                 heading: { levels: [1, 2, 3] },
