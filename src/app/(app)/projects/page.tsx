@@ -168,8 +168,14 @@ export default function ProjectsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
                     {filtered.map((project) => (
                         <Link key={project.id} href={`/projects/${project.id}`}>
-                            <Card className="glass border-burgundy/10 hover:border-burgundy/30 hover:glow-burgundy transition-all duration-500 cursor-pointer group h-full">
-                                <CardContent className="p-5 flex flex-col h-full">
+                            <Card className="glass border-burgundy/10 hover:border-burgundy/30 hover:glow-burgundy transition-all duration-500 cursor-pointer group h-full overflow-hidden relative">
+                                {project.cover_url && (
+                                    <div 
+                                        className="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity bg-cover bg-center -z-0"
+                                        style={{ backgroundImage: `url(${project.cover_url})` }}
+                                    />
+                                )}
+                                <CardContent className="p-5 flex flex-col h-full relative z-10">
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex items-center gap-2">
                                             <span className="text-xl">
