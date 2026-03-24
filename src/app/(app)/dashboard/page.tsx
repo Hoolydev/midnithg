@@ -44,13 +44,18 @@ const genreEmojis: Record<string, string> = {
     romance: '💕',
     'dark romance': '🖤',
     fantasy: '🐉',
+    fantasia: '🐉',
     suspense: '🔍',
     thriller: '🔪',
     horror: '👻',
+    terror: '👻',
     'sci-fi': '🚀',
+    'ficção científica': '🚀',
     drama: '🎭',
     mystery: '🕵️',
+    mistério: '🕵️',
     other: '📚',
+    outro: '📚',
 };
 
 export default function DashboardPage() {
@@ -88,6 +93,7 @@ export default function DashboardPage() {
     }, []);
 
     const handleDelete = async (id: string) => {
+        if (!confirm('Tem certeza de que deseja deletar este projeto permanentemente?')) return;
         const supabase = createClient();
         await supabase.from('projects').delete().eq('id', id);
         setProjects((prev) => prev.filter((p) => p.id !== id));

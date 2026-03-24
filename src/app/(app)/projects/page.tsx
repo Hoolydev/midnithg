@@ -85,6 +85,7 @@ export default function ProjectsPage() {
     }, []);
 
     const handleDelete = async (id: string) => {
+        if (!confirm('Tem certeza de que deseja deletar este projeto permanentemente?')) return;
         const supabase = createClient();
         await supabase.from('projects').delete().eq('id', id);
         setProjects((prev) => prev.filter((p) => p.id !== id));
