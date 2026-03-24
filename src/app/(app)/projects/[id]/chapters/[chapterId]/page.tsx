@@ -223,14 +223,11 @@ export default function ChapterEditorPage() {
                         </Link>
 
                         <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono text-muted-foreground">
-                                Cap. {String(chapter.number).padStart(2, '0')}
-                            </span>
                             <Input
                                 value={title}
                                 onChange={(e) => handleTitleChange(e.target.value)}
-                                className="h-8 border-none bg-transparent text-foreground font-semibold text-sm focus-visible:ring-0 focus-visible:ring-offset-0 px-1 w-auto min-w-[200px]"
-                                placeholder="Título do capítulo..."
+                                className="h-8 border-none bg-transparent text-foreground font-semibold text-lg focus-visible:ring-0 focus-visible:ring-offset-0 px-1 w-auto min-w-[300px]"
+                                placeholder={`Capítulo ${String(chapter.number).padStart(2, '0')}...`}
                             />
                         </div>
                     </div>
@@ -292,11 +289,12 @@ export default function ChapterEditorPage() {
                 </div>
 
                 {/* Editor */}
-                <div className="flex-1 overflow-y-auto">
-                    <div className="max-w-4xl mx-auto py-4 px-4">
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="flex-1 max-w-4xl mx-auto w-full py-4 px-4 h-full">
                         <TipTapEditor
                             content={content}
                             onChange={scheduleAutoSave}
+                            className="h-full"
                         />
                     </div>
                 </div>

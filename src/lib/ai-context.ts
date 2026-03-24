@@ -40,6 +40,27 @@ export async function buildAIContext(projectId: string, chapterId?: string): Pro
     const events: Pick<Event, 'description' | 'timeline_position'>[] = results[3].data || [];
     const currentChapter: Pick<Chapter, 'number' | 'title' | 'content'> | null = chapterId ? results[4]?.data : null;
 
+    let previousChapterContent = '';
+
+    // If we have a current chapter, discover if it's practically empty, then grab the preceding chapter's text
+    if (chapterId && allChapters.length > 0) {
+        const currentIndex = allChapters.findIndex(c => c.id === chapterId);
+        if (currentIndex > 0) {
+            const prevChapterRef = allChapters[currentIndex - 1];
+            // Fetch content lazily only if needed
+            const { data: prevData } = await supabase
+                .from('chapters')
+                .select('content')
+                .eq('id', prevChapterRef.id)
+                .single();
+
+            if (prevData?.content) {
+                const plainText = prevData.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                previousChapterContent = plainText.length > 2500 ? plainText.slice(-2500) : plainText;
+            }
+        }
+    }
+
     if (!project) {
         return {
             systemPrompt: 'You are a creative fiction writing assistant. Write in Portuguese (Brazil).',
@@ -87,6 +108,14 @@ Write in Portuguese (Brazil) unless the user explicitly asks for another languag
         for (const ev of events) {
             prompt += `\n- [Position ${ev.timeline_position}]: ${ev.description}`;
         }
+    }
+
+    if (previousChapterContent) {
+         prompt += `\n\n## Final do Capítulo Anterior
+Para garantir a coesão, aqui está o finalzinho do capítulo isolado anterior da história:
+---
+${previousChapterContent}
+---`;
     }
 
     // Include current chapter content for deep context

@@ -43,6 +43,8 @@ import {
     X,
     Save,
     Loader2,
+    Trash2,
+    Image as ImageIcon,
 } from 'lucide-react';
 import type { Project, Character, Chapter, Event } from '@/lib/database.types';
 
@@ -103,7 +105,12 @@ export default function ProjectPage() {
         classification: '',
         target_audience: '',
         structure: '',
+        cover_url: '',
     });
+    const [eventDialogOpen, setEventDialogOpen] = useState(false);
+    const [newEvent, setNewEvent] = useState({ description: '', timeline_position: 1 });
+    const [savingEvent, setSavingEvent] = useState(false);
+    const [deletingProjectId, setDeletingProjectId] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -124,6 +131,7 @@ export default function ProjectPage() {
                     classification: projectRes.data.classification || '',
                     target_audience: projectRes.data.target_audience || '',
                     structure: projectRes.data.structure || '',
+                    cover_url: projectRes.data.cover_url || '',
                 });
             }
             if (charsRes.data) setCharacters(charsRes.data);
@@ -147,6 +155,68 @@ export default function ProjectPage() {
             setSettingsOpen(false);
         }
         setSettingsSaving(false);
+    };
+
+    const handleAddEvent = async () => {
+        if (!newEvent.description.trim()) return;
+        setSavingEvent(true);
+        const supabase = createClient();
+        const { data, error } = await supabase
+            .from('events')
+            .insert({
+                project_id: projectId,
+                description: newEvent.description,
+                timeline_position: newEvent.timeline_position,
+            })
+            .select()
+            .single();
+
+        if (data && !error) {
+            setEvents((prev) => [...prev, data].sort((a, b) => a.timeline_position - b.timeline_position));
+            setEventDialogOpen(false);
+            setNewEvent({ description: '', timeline_position: events.length + 2 });
+        }
+        setSavingEvent(false);
+    };
+
+    const handleDeleteEvent = async (id: string) => {
+        const supabase = createClient();
+        await supabase.from('events').delete().eq('id', id);
+        setEvents((prev) => prev.filter((e) => e.id !== id));
+    };
+
+    const handleDeleteProject = async () => {
+        if (confirm('Tem certeza de que deseja deletar este projeto e todos os seus capítulos? Esta ação é IRREVERSÍVEL.')) {
+            setDeletingProjectId(true);
+            const supabase = createClient();
+            await supabase.from('projects').delete().eq('id', projectId);
+            router.push('/projects');
+        }
+    };
+
+    const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const supabase = createClient();
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${projectId}-${Math.random()}.${fileExt}`;
+
+        try {
+            // Se a bucket não existir, o upload falhará, mas tentamos assim mesmo
+            const { data, error } = await supabase.storage
+                .from('covers')
+                .upload(fileName, file);
+            
+            if (data) {
+                const { data: publicData } = supabase.storage.from('covers').getPublicUrl(fileName);
+                setSettingsForm(prev => ({ ...prev, cover_url: publicData.publicUrl }));
+            } else {
+                alert('Erro ao subir capa: ' + error?.message);
+            }
+        } catch (err: any) {
+            console.error(err);
+        }
     };
 
     if (loading) {
@@ -189,8 +259,14 @@ export default function ProjectPage() {
             </div>
 
             {/* Project Header */}
-            <div className="glass-strong rounded-2xl p-6 glow-burgundy">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            <div className="glass-strong rounded-2xl p-6 glow-burgundy relative overflow-hidden">
+                {project.cover_url && (
+                    <div 
+                        className="absolute inset-0 opacity-10 pointer-events-none bg-cover bg-center"
+                        style={{ backgroundImage: `url(${project.cover_url})` }}
+                    />
+                )}
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 relative z-10">
                     <div>
                         <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <h1 className="text-2xl font-bold text-foreground">{project.title}</h1>
@@ -268,18 +344,52 @@ export default function ProjectPage() {
                                             placeholder="Ex: Três atos, Jornada do Herói"
                                         />
                                     </div>
-                                    <div className="flex justify-end gap-3 pt-2">
-                                        <Button variant="ghost" onClick={() => setSettingsOpen(false)} className="text-muted-foreground">
-                                            Cancelar
-                                        </Button>
-                                        <Button
-                                            onClick={handleSaveSettings}
-                                            disabled={settingsSaving}
-                                            className="bg-burgundy-gradient hover:opacity-90 text-white gap-2"
+                                    <div className="space-y-2">
+                                        <Label>Capa do Livro</Label>
+                                        <div className="flex gap-2 items-center">
+                                            <Input
+                                                value={settingsForm.cover_url}
+                                                onChange={(e) => setSettingsForm({ ...settingsForm, cover_url: e.target.value })}
+                                                className="bg-midnight/50 border-border/50"
+                                                placeholder="URL da imagem..."
+                                            />
+                                            <div className="relative">
+                                                <Button size="icon" variant="outline" className="shrink-0 border-border/50">
+                                                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                                                </Button>
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/*"
+                                                    onChange={handleCoverUpload}
+                                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center pt-4 border-t border-border/20 mt-4">
+                                        <Button 
+                                            variant="destructive" 
+                                            size="sm" 
+                                            onClick={handleDeleteProject}
+                                            disabled={deletingProjectId}
+                                            className="bg-red-950/50 hover:bg-red-900/80 text-red-200 border border-red-900/50"
                                         >
-                                            {settingsSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                                            Salvar
+                                            {deletingProjectId ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Trash2 className="w-3.5 h-3.5 mr-2" />}
+                                            Deletar Projeto
                                         </Button>
+                                        <div className="flex gap-2">
+                                            <Button variant="ghost" onClick={() => setSettingsOpen(false)} className="text-muted-foreground">
+                                                Cancelar
+                                            </Button>
+                                            <Button
+                                                onClick={handleSaveSettings}
+                                                disabled={settingsSaving}
+                                                className="bg-burgundy-gradient hover:opacity-90 text-white gap-2"
+                                            >
+                                                {settingsSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                                Salvar
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </DialogContent>
@@ -457,9 +567,6 @@ export default function ProjectPage() {
                                 <Card key={chapter.id} onClick={() => router.push(`/projects/${projectId}/chapters/${chapter.id}`)} className="glass border-burgundy/10 hover:border-burgundy/25 transition-all cursor-pointer group">
                                     <CardContent className="p-4 flex items-center justify-between">
                                         <div className="flex items-center gap-4">
-                                            <span className="text-sm font-mono text-muted-foreground w-8">
-                                                {String(chapter.number).padStart(2, '0')}
-                                            </span>
                                             <div>
                                                 <h3 className="font-medium text-foreground group-hover:text-burgundy-light transition-colors">
                                                     {chapter.title || `Capítulo ${chapter.number}`}
@@ -540,10 +647,44 @@ export default function ProjectPage() {
                 <TabsContent value="timeline" className="space-y-4">
                     <div className="flex justify-between items-center">
                         <h2 className="text-lg font-semibold text-foreground">Linha do Tempo</h2>
-                        <Button size="sm" className="bg-burgundy-gradient hover:opacity-90 text-white gap-2">
-                            <Plus className="w-3.5 h-3.5" />
-                            Adicionar Evento
-                        </Button>
+                        <Dialog open={eventDialogOpen} onOpenChange={setEventDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button size="sm" className="bg-burgundy-gradient hover:opacity-90 text-white gap-2">
+                                    <Plus className="w-3.5 h-3.5" />
+                                    Adicionar Evento
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-midnight-light border-border/20">
+                                <DialogHeader>
+                                    <DialogTitle>Novo Evento na Timeline</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 py-2">
+                                    <div className="space-y-2">
+                                        <Label>Posição (Ordem cronológica)</Label>
+                                        <Input 
+                                            type="number" 
+                                            value={newEvent.timeline_position} 
+                                            onChange={e => setNewEvent({...newEvent, timeline_position: Number(e.target.value)})}
+                                            className="bg-midnight/50 border-border/50"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Descrição do Evento</Label>
+                                        <Textarea 
+                                            value={newEvent.description}
+                                            onChange={e => setNewEvent({...newEvent, description: e.target.value})}
+                                            className="bg-midnight/50 border-border/50 resize-none"
+                                            placeholder="O que acontece ou é revelado?"
+                                            rows={3}
+                                        />
+                                    </div>
+                                    <Button onClick={handleAddEvent} disabled={savingEvent} className="w-full bg-burgundy-gradient text-white">
+                                        {savingEvent ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                                        Adicionar Evento
+                                    </Button>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     </div>
 
                     {events.length === 0 ? (
@@ -563,12 +704,22 @@ export default function ProjectPage() {
                                 <div key={event.id} className="relative">
                                     <div className="absolute -left-4 top-1 w-3 h-3 rounded-full bg-burgundy border-2 border-background" />
                                     <Card className="glass border-burgundy/10 ml-2">
-                                        <CardContent className="p-3">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <Sparkles className="w-3 h-3 text-gold" />
-                                                <span className="text-xs text-muted-foreground">
-                                                    Posição {event.timeline_position}
-                                                </span>
+                                        <CardContent className="p-3 relative group">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Sparkles className="w-3 h-3 text-gold" />
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Posição {event.timeline_position}
+                                                    </span>
+                                                </div>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    onClick={() => handleDeleteEvent(event.id)}
+                                                    className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 hover:bg-red-950/30"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </Button>
                                             </div>
                                             <p className="text-sm text-foreground">{event.description}</p>
                                         </CardContent>

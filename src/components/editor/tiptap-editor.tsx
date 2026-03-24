@@ -95,7 +95,7 @@ export function TipTapEditor({
     return (
         <div className={`flex flex-col border border-border/30 rounded-xl overflow-hidden bg-midnight-light/50 ${className}`}>
             <EditorToolbar editor={editor} />
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto min-h-[500px]">
                 <EditorContent editor={editor} />
             </div>
         </div>
